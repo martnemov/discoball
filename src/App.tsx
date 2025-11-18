@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
-import DiscoBall from './components/DiscoBall'
+import DiscoBallScene from './components/DiscoBallScene'
 import Prize from './components/Prize'
 
 const PRIZES = ['🎁', '🎉', '⭐', '💎', '🏆', '🎊', '✨', '🌟']
@@ -91,7 +91,7 @@ function App() {
         <h1 className="title">Дискошар</h1>
         
         <div className="disco-container">
-          <DiscoBall 
+          <DiscoBallScene 
             rotationSpeed={rotationSpeed} 
             onClick={handleDiscoBallClick}
             isMaxSpeed={showMaxSpeedEffect}
