@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -17,130 +17,93 @@ function DiscoBall3D({ rotationSpeed, isMaxSpeed }: DiscoBall3DProps) {
     }
   })
 
-  // Создаем КРУПНЫЕ плитки как на фото
-  const tiles = []
-  const radius = 2.5
-  const rows = 12
-  const cols = 16
+  // Создаем ПЛОТНУЮ сетку мелких зеркальных плиток (50x65 = 3250 плиток)
+  const tiles = useMemo(() => {
+    const tilesArray = []
+    const radius = 2.5
+    const rows = 50 // Очень плотная сетка
+    const cols = 65 // Много плиток по окружности
 
-  for (let row = 1; row < rows - 1; row++) {
-    for (let col = 0; col < cols; col++) {
-      const phi = (row / rows) * Math.PI
-      const theta = (col / cols) * Math.PI * 2
+    for (let row = 1; row < rows - 1; row++) {
+      for (let col = 0; col < cols; col++) {
+        const phi = (row / rows) * Math.PI
+        const theta = (col / cols) * Math.PI * 2
 
-      const x = radius * Math.sin(phi) * Math.cos(theta)
-      const y = radius * Math.cos(phi)
-      const z = radius * Math.sin(phi) * Math.sin(theta)
+        // Небольшая рандомизация для естественного вида
+        const randomOffset = 0.002
+        const phiRand = phi + (Math.random() - 0.5) * randomOffset
+        const thetaRand = theta + (Math.random() - 0.5) * randomOffset
 
-      const normal = new THREE.Vector3(x, y, z).normalize()
+        const x = radius * Math.sin(phiRand) * Math.cos(thetaRand)
+        const y = radius * Math.cos(phiRand)
+        const z = radius * Math.sin(phiRand) * Math.sin(thetaRand)
 
-      // Создаем очень разные цвета - от почти белого до темного фиолетового
-      const rand = Math.random()
-      let hue, saturation, lightness
-      
-      if (rand < 0.2) {
-        // 20% - почти белые/очень светлые плитки
-        hue = 320 + Math.random() * 20
-        saturation = 20 + Math.random() * 30
-        lightness = 80 + Math.random() * 15
-      } else if (rand < 0.5) {
-        // 30% - светло-розовые
-        hue = 315 + Math.random() * 25
-        saturation = 60 + Math.random() * 30
-        lightness = 65 + Math.random() * 20
-      } else if (rand < 0.8) {
-        // 30% - средние розово-фиолетовые
-        hue = 310 + Math.random() * 30
-        saturation = 65 + Math.random() * 25
-        lightness = 50 + Math.random() * 20
-      } else {
-        // 20% - темные фиолетовые
-        hue = 280 + Math.random() * 30
-        saturation = 70 + Math.random() * 25
-        lightness = 30 + Math.random() * 20
+        const normal = new THREE.Vector3(x, y, z).normalize()
+
+        // Розово-фиолетовая гамма с вариациями
+        const hue = 310 + Math.random() * 40 // 310-350 (розовый-пурпурный-фиолетовый)
+        const saturation = 70 + Math.random() * 25
+        const lightness = 50 + Math.random() * 30
+
+        // Небольшая рандомизация поворота плитки
+        const rotRandom = (Math.random() - 0.5) * 0.1
+
+        tilesArray.push({ 
+          position: new THREE.Vector3(x, y, z),
+          normal: normal,
+          color: new THREE.Color().setHSL(hue / 360, saturation / 100, lightness / 100),
+          rotationOffset: rotRandom
+        })
       }
-
-      tiles.push({ 
-        id: `${row}-${col}`, 
-        position: new THREE.Vector3(x, y, z),
-        normal: normal,
-        color: new THREE.Color().setHSL(hue / 360, saturation / 100, lightness / 100)
-      })
     }
-  }
+
+    return tilesArray
+  }, [])
 
   return (
     <group ref={groupRef}>
-      {/* Основная розовая стеклянная сфера */}
+      {/* Основная сфера-основа (немного меньше, чтобы плитки выступали) */}
       <mesh>
-        <sphereGeometry args={[2.42, 64, 64]} />
-        <meshPhysicalMaterial
-          color="#e05bb5"
-          metalness={0.7}
-          roughness={0.2}
-          transparent={true}
-          opacity={0.95}
-          envMapIntensity={1.3}
+        <sphereGeometry args={[2.47, 128, 128]} />
+        <meshStandardMaterial
+          color="#c94ba0"
+          metalness={0.6}
+          roughness={0.3}
         />
       </mesh>
 
-      {/* КРУПНЫЕ зеркальные плитки с золотистыми рамками */}
-      {tiles.map((tile) => {
+      {/* ПЛОТНАЯ СЕТКА мелких зеркальных плиток */}
+      {tiles.map((tile, i) => {
         const quaternion = new THREE.Quaternion()
         quaternion.setFromUnitVectors(
           new THREE.Vector3(0, 0, 1),
           tile.normal
         )
         const euler = new THREE.Euler().setFromQuaternion(quaternion)
+        euler.z += tile.rotationOffset // Добавляем рандомизацию
 
         return (
-          <group key={tile.id}>
-            {/* Золотистая рамка/граница плитки */}
-            <mesh 
-              position={tile.position}
-              rotation={euler}
-            >
-              <boxGeometry args={[0.38, 0.38, 0.015]} />
-              <meshStandardMaterial
-                color="#b8860b"
-                metalness={0.95}
-                roughness={0.2}
-              />
-            </mesh>
-            
-            {/* Сама зеркальная плитка с сильным блеском */}
-            <mesh 
-              position={tile.position}
-              rotation={euler}
-            >
-              <boxGeometry args={[0.34, 0.34, 0.02]} />
-              <meshPhysicalMaterial
-                color={tile.color}
-                metalness={1}
-                roughness={0}
-                emissive={isMaxSpeed ? tile.color : new THREE.Color(0, 0, 0)}
-                emissiveIntensity={isMaxSpeed ? 1 : 0}
-                envMapIntensity={4}
-                clearcoat={1}
-                clearcoatRoughness={0}
-                reflectivity={1}
-              />
-            </mesh>
-          </group>
+          <mesh 
+            key={i}
+            position={tile.position}
+            rotation={euler}
+          >
+            {/* Очень маленькие тонкие плитки */}
+            <boxGeometry args={[0.08, 0.08, 0.01]} />
+            <meshPhysicalMaterial
+              color={tile.color}
+              metalness={1} // Максимальная металличность
+              roughness={0.05} // Очень низкая шероховатость = зеркальность
+              emissive={isMaxSpeed ? tile.color : new THREE.Color(0, 0, 0)}
+              emissiveIntensity={isMaxSpeed ? 1.5 : 0}
+              envMapIntensity={5} // Сильные отражения
+              clearcoat={1}
+              clearcoatRoughness={0}
+              reflectivity={1}
+            />
+          </mesh>
         )
       })}
-
-      {/* Очень яркое освещение для бликов */}
-      <pointLight 
-        position={[0, 0, 0]} 
-        intensity={isMaxSpeed ? 7 : 5} 
-        color="#ffffff" 
-        distance={25} 
-      />
-      <pointLight position={[5, 5, 3]} intensity={3} color="#ffffff" />
-      <pointLight position={[-5, -5, -3]} intensity={2.5} color="#ff9bc4" />
-      <pointLight position={[3, -3, 5]} intensity={2} color="#ffcce6" />
-      <pointLight position={[-3, 3, -5]} intensity={2} color="#ff6ec4" />
     </group>
   )
 }
