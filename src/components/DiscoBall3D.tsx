@@ -17,48 +17,44 @@ function DiscoBall3D({ rotationSpeed, isMaxSpeed }: DiscoBall3DProps) {
     }
   })
 
-  // Создаем ПЛОТНУЮ сетку мелких зеркальных плиток (50x65 = 3250 плиток)
+  // Создаем плитки ВПЛОТНУЮ друг к другу - рассчитываем точный размер
   const tiles = useMemo(() => {
     const tilesArray = []
     const radius = 2.5
-    const rows = 50 // Очень плотная сетка
-    const cols = 65 // Много плиток по окружности
+    const rows = 28 // Меньше рядов, но крупнее плитки
+    const cols = 38 // Меньше колонок, но крупнее плитки
 
     for (let row = 1; row < rows - 1; row++) {
       for (let col = 0; col < cols; col++) {
         const phi = (row / rows) * Math.PI
         const theta = (col / cols) * Math.PI * 2
 
-        // Небольшая рандомизация для естественного вида
-        const randomOffset = 0.002
-        const phiRand = phi + (Math.random() - 0.5) * randomOffset
-        const thetaRand = theta + (Math.random() - 0.5) * randomOffset
-
-        const x = radius * Math.sin(phiRand) * Math.cos(thetaRand)
-        const y = radius * Math.cos(phiRand)
-        const z = radius * Math.sin(phiRand) * Math.sin(thetaRand)
+        // БЕЗ рандомизации - плитки точно на своих местах
+        const x = radius * Math.sin(phi) * Math.cos(theta)
+        const y = radius * Math.cos(phi)
+        const z = radius * Math.sin(phi) * Math.sin(theta)
 
         const normal = new THREE.Vector3(x, y, z).normalize()
 
         // Розово-фиолетовая гамма с вариациями
-        const hue = 310 + Math.random() * 40 // 310-350 (розовый-пурпурный-фиолетовый)
+        const hue = 310 + Math.random() * 40
         const saturation = 70 + Math.random() * 25
         const lightness = 50 + Math.random() * 30
-
-        // Небольшая рандомизация поворота плитки
-        const rotRandom = (Math.random() - 0.5) * 0.1
 
         tilesArray.push({ 
           position: new THREE.Vector3(x, y, z),
           normal: normal,
-          color: new THREE.Color().setHSL(hue / 360, saturation / 100, lightness / 100),
-          rotationOffset: rotRandom
+          color: new THREE.Color().setHSL(hue / 360, saturation / 100, lightness / 100)
         })
       }
     }
 
     return tilesArray
   }, [])
+
+  // Рассчитываем размер плитки чтобы покрыть сферу вплотную
+  // Размер плитки = окружность на экваторе / количество плиток
+  const tileSize = (2 * Math.PI * 2.5) / 38 * 1.02 // Чуть больше для перекрытия
 
   return (
     <group ref={groupRef}>
@@ -72,7 +68,7 @@ function DiscoBall3D({ rotationSpeed, isMaxSpeed }: DiscoBall3DProps) {
         />
       </mesh>
 
-      {/* ПЛОТНАЯ СЕТКА мелких зеркальных плиток */}
+      {/* Крупные зеркальные плитки ВПЛОТНУЮ друг к другу */}
       {tiles.map((tile, i) => {
         const quaternion = new THREE.Quaternion()
         quaternion.setFromUnitVectors(
@@ -80,7 +76,6 @@ function DiscoBall3D({ rotationSpeed, isMaxSpeed }: DiscoBall3DProps) {
           tile.normal
         )
         const euler = new THREE.Euler().setFromQuaternion(quaternion)
-        euler.z += tile.rotationOffset // Добавляем рандомизацию
 
         return (
           <mesh 
@@ -88,15 +83,15 @@ function DiscoBall3D({ rotationSpeed, isMaxSpeed }: DiscoBall3DProps) {
             position={tile.position}
             rotation={euler}
           >
-            {/* Очень маленькие тонкие плитки */}
-            <boxGeometry args={[0.08, 0.08, 0.01]} />
+            {/* Крупные квадратные плитки, плотно прилегающие */}
+            <boxGeometry args={[tileSize, tileSize, 0.015]} />
             <meshPhysicalMaterial
               color={tile.color}
-              metalness={1} // Максимальная металличность
-              roughness={0.05} // Очень низкая шероховатость = зеркальность
+              metalness={1}
+              roughness={0.05}
               emissive={isMaxSpeed ? tile.color : new THREE.Color(0, 0, 0)}
               emissiveIntensity={isMaxSpeed ? 1.5 : 0}
-              envMapIntensity={5} // Сильные отражения
+              envMapIntensity={5}
               clearcoat={1}
               clearcoatRoughness={0}
               reflectivity={1}
